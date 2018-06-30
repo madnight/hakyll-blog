@@ -24,9 +24,39 @@
             $body$
         </main>
 
-        <footer>
+<a href="javascript:showComments();">Comments</a>
+<script>
+function showComments() {
+    var x = document.getElementById("disqus_thread");
+    if (x.style.display === "none") {
+        x.style.display = "block";
+    } else {
+        x.style.display = "none";
+    }
+}
+</script>
 
-            Text licensed under CC BY-SA 4.0.<br> Blog powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a>.
-        </footer>
+<div id="disqus_thread"></div>
+<script>
+    var disqus_config = function () {
+        this.page.url = beuke.org;
+        this.page.identifier = beuke;
+    };
+(function() {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://beuke.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+})();
+var x = document.getElementById("disqus_thread");
+x.style.display = "none";
+</script>
+
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+<footer>
+
+    Text licensed under CC BY-SA 4.0.<br> Blog powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a>.
+</footer>
     </body>
 </html>
