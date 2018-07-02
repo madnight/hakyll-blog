@@ -1,0 +1,27 @@
+{
+  "name": "hakyll-blog",
+  "version": "1.0.0",
+  "description": "Setup (nix build) ```bash nix-shell --command 'cabal build' dist/build/site/site clean # build dist/build/site/site build # hot reload devel dist/build/site/site watch ```",
+  "main": "gulpfile.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "deploy": "gulp deploy"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/madnight/hakyll-blog.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/madnight/hakyll-blog/issues"
+  },
+  "homepage": "https://github.com/madnight/hakyll-blog#readme",
+  "dependencies": {
+    "gulp": "^3.9.1",
+    "inquirer-confirm": "^0.2.2"
+  },
+  "devDependencies": {
+    "gh-pages": "^1.2.0"
+  }
+}
