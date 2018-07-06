@@ -65,6 +65,25 @@ article .header {
   text-decoration: none;
 }
 
+a:hover {
+  text-decoration: underline;
+  color:black
+}
+
+a:visited {
+  color: blue;
+  text-decoration: none
+}
+
+a {
+    text-decoration: none;
+    color: #00005e
+}
+
+a img {
+    border: none
+}
+
 @media (max-width: 319px) {
   body {
     width: 90%;
