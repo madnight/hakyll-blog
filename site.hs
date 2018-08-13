@@ -8,9 +8,11 @@ import Hakyll
 cleanRoute :: Routes
 cleanRoute = customRoute createIndexRoute
   where createIndexRoute ident =
-          takeDirectory p </>
           takeBaseName p </> "index.html"
           where p = toFilePath ident
+
+dropPostsPrefix :: Routes
+dropPostsPrefix = gsubRoute "posts/" $ const ""
 
 cleanIndexUrls :: Item String -> Compiler (Item String)
 cleanIndexUrls = return . fmap (withUrls cleanIndex)
@@ -57,13 +59,15 @@ main = hakyll $ do
             >>= loadAndApplyTemplate "templates/post.html"    postCtx
             >>= loadAndApplyTemplate "templates/default.html" postCtx
             >>= relativizeUrls
+            >>= cleanIndexUrls
 
     match "posts/*" $ do
-        route $ setExtension "html"
+        route $ cleanRoute
         compile $ pandocCompiler
             >>= loadAndApplyTemplate "templates/post.html"    postCtx
             >>= loadAndApplyTemplate "templates/default.html" postCtx
             >>= relativizeUrls
+            >>= cleanIndexUrls
 
     create ["archive.html"] $ do
         route idRoute
@@ -78,6 +82,7 @@ main = hakyll $ do
                 >>= loadAndApplyTemplate "templates/archive.html" archiveCtx
                 >>= loadAndApplyTemplate "templates/default.html" archiveCtx
                 >>= relativizeUrls
+                >>= cleanIndexUrls
 
 
     match "index.html" $ do
@@ -93,6 +98,7 @@ main = hakyll $ do
                 >>= applyAsTemplate indexCtx
                 >>= loadAndApplyTemplate "templates/default.html" indexCtx
                 >>= relativizeUrls
+                >>= cleanIndexUrls
 
     match "templates/*" $ compile templateBodyCompiler
 

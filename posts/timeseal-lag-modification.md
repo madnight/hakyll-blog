@@ -31,7 +31,7 @@ The address for the random hook is `timeseal.004021F0 := rand()` while `AND EAX,
 
 Full fledged example that hooks into the `ADVAPI32.dll` with a small window for different lag settings.
 
-```c++
+```cpp
 #include "stdafx.h"
 #pragma comment(lib, "detours.lib")
 
