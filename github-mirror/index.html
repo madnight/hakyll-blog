@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>beuke.org</title>
+        <link rel="stylesheet" href="../css/default.css" />
+        <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script> -->
+    </head>
+
+    <body>
+
+        <header>
+
+            <div class="logo">
+                <a href="../">beuke.org</a>
+            </div>
+
+            <nav>
+                <a href="../">Home</a>
+                <a href="../contact.html">Contact</a>
+            </nav>
+
+        </header>
+
+        <main role="main">
+            <h1>Create Github Mirror</h1>
+            <article>
+    <section class="header">
+        Posted on December 25, 2016
+        
+    </section>
+    <section>
+        <h1 id="motivation">Motivation</h1>
+<p>Many big repositories are not hosted on Github, but do have a official mirror like linux<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>, git<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a> or ghc<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>. The purpose of these mirrors is to provide an easy access (lower the barrier) to repositories that are not hosted on Github. There are many repositories that do not offer a official mirror. Follow this short article, if you want to know how to create a mirror, to provide an easy access to external repositories as well.</p>
+<h1 id="clone">Clone</h1>
+<p>Step 0: Clone the repository you want to mirror Step 1: Add your empty remote Github repository as mirror</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="co"># example for valgrind</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="fu">git</span> svn clone svn://svn.valgrind.org/valgrind/trunk valgrind</a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="bu">cd</span> valgrind</a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="fu">git</span> remote add mirror https://github.com/USERNAME/valgrind.git</a></code></pre></div>
+<h1 id="mirror">Mirror</h1>
+<p>Step 2: Create a <code>mirror.bash</code> file with all repositories you want to mirror and copy the contents below. Update the <code>GIT_PATH</code> and choose your mirrors.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">while</span> <span class="bu">:</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="kw">do</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"><span class="kw">function</span><span class="fu"> update</span> <span class="kw">{</span></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4"><span class="bu">cd</span> <span class="va">$GIT_PATH</span>/<span class="va">$2</span></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb2-6" data-line-number="6"><span class="kw">if</span><span class="bu"> [</span> <span class="va">$1</span> <span class="ot">=</span> <span class="st">&quot;svn&quot;</span><span class="bu"> ]</span>; <span class="kw">then</span></a>
+<a class="sourceLine" id="cb2-7" data-line-number="7">    <span class="fu">git</span> svn rebase origin/master</a>
+<a class="sourceLine" id="cb2-8" data-line-number="8"><span class="kw">else</span></a>
+<a class="sourceLine" id="cb2-9" data-line-number="9">    <span class="fu">git</span> rebase -s recursive -X theirs origin/master</a>
+<a class="sourceLine" id="cb2-10" data-line-number="10"><span class="kw">fi</span></a>
+<a class="sourceLine" id="cb2-11" data-line-number="11"></a>
+<a class="sourceLine" id="cb2-12" data-line-number="12"><span class="fu">git</span> push -f mirror master</a>
+<a class="sourceLine" id="cb2-13" data-line-number="13"><span class="kw">}</span></a>
+<a class="sourceLine" id="cb2-14" data-line-number="14"></a>
+<a class="sourceLine" id="cb2-15" data-line-number="15"><span class="ex">update</span> <span class="st">&quot;svn&quot;</span> valgrind</a>
+<a class="sourceLine" id="cb2-16" data-line-number="16"></a>
+<a class="sourceLine" id="cb2-17" data-line-number="17"><span class="co"># other examples</span></a>
+<a class="sourceLine" id="cb2-18" data-line-number="18"><span class="co"># update &quot;git&quot; grub</span></a>
+<a class="sourceLine" id="cb2-19" data-line-number="19"><span class="co"># update &quot;git&quot; nano</span></a>
+<a class="sourceLine" id="cb2-20" data-line-number="20"><span class="co"># update &quot;svn&quot; codeblocks</span></a>
+<a class="sourceLine" id="cb2-21" data-line-number="21"></a>
+<a class="sourceLine" id="cb2-22" data-line-number="22"><span class="co"># repeat every 2 hours</span></a>
+<a class="sourceLine" id="cb2-23" data-line-number="23"><span class="fu">sleep</span> 2h</a>
+<a class="sourceLine" id="cb2-24" data-line-number="24"><span class="kw">done</span></a></code></pre></div>
+<p>Step 3: Make the script executable <code>chmod x+u</code> and run it.</p>
+<p>Example: <a href="https://github.com/madnight/valgrind">Valgrind mirror</a></p>
+<h2 id="references">References</h2>
+<section class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p><a href="https://github.com/torvalds/linux">Mirror of the Linux Kernel</a><a href="#fnref1" class="footnote-back">↩</a></p></li>
+<li id="fn2"><p><a href="https://github.com/git/git">Mirror of git</a><a href="#fnref2" class="footnote-back">↩</a></p></li>
+<li id="fn3"><p><a href="https://github.com/ghc/ghc">Mirror of the Glasgow Haskell Compiler</a><a href="#fnref3" class="footnote-back">↩</a></p></li>
+</ol>
+</section>
+    </section>
+</article>
+
+<!-- <div id="comments"> -->
+<!-- <div class="post-header"> -->
+<!--   <h1 class="h1 post-title">Comments</h1> -->
+<!-- </div> -->
+<!-- <article class="post-content"> -->
+<!-- </article> -->
+<!-- <script type="text/javascript"> -->
+<!--       var myJqueryAlias = jQuery.noConflict(); -->
+<!--   function loadComments(data) { -->
+<!--     for (var i=0; i<data.length; i++) { -->
+<!--       var cuser = data[i].user.login; -->
+<!--       var cuserlink = data[i].user.html_url; -->
+<!--       var clink = data[i].html_url; -->
+<!--       var cbody = data[i].body_html; -->
+<!--       var cavatarlink = data[i].user.avatar_url; -->
+<!--       var cdate = new Date(data[i].created_at); -->
+
+<!--         var options = { year: "numeric", month: "numeric", day: "numeric" }; -->
+<!--       myJqueryAlias("#comments").append( -->
+<!--          "<div class='comment'>" + -->
+<!--             "<div class='commentheader'>" + -->
+<!--               "<a class='commentuser'>" + -->
+<!--         "<b>" + cuser + "</b>" + " - " + -->
+<!--               "</a>" + -->
+<!--               "<a class='commentdate'>" + -->
+<!--         "<small>" + cdate.toISOString().slice(0,10) + "</small>" + -->
+<!--               "</a>" + -->
+<!--             "</div>" + -->
+<!--             "<div class='commentbody'>" + -->
+<!--               cbody + -->
+<!--             "</div>" + -->
+<!--           "</div>" -->
+<!--       ); -->
+<!--     } -->
+<!--   } -->
+<!--   myJqueryAlias.ajax("https://api.github.com/repos/mkoohafkan/mkoohafkan.github.io/issues/23/comments", { -->
+<!--     headers: {Accept: "application/vnd.github.v3.html+json"}, -->
+<!--     dataType: "json", -->
+<!--     success: function(msg){ -->
+<!--       loadComments(msg); -->
+<!--    } -->
+<!--   }); -->
+<!-- </script> -->
+
+<!-- <p>Want to leave a comment? Visit <a href="https://github.com/mkoohafkan/mkoohafkan.github.io/issues/{{page.commentIssueId}}"> this post's issue page on GitHub</a></p> -->
+
+
+
+        </main>
+
+        <footer>
+            Text licensed under CC BY-SA 4.0.<br> Blog powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a>.
+        </footer>
+
+    </body>
+
+</html>

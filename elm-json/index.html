@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>beuke.org</title>
+        <link rel="stylesheet" href="../css/default.css" />
+        <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script> -->
+    </head>
+
+    <body>
+
+        <header>
+
+            <div class="logo">
+                <a href="../">beuke.org</a>
+            </div>
+
+            <nav>
+                <a href="../">Home</a>
+                <a href="../contact.html">Contact</a>
+            </nav>
+
+        </header>
+
+        <main role="main">
+            <h1>JSON Parsing in ELM</h1>
+            <article>
+    <section class="header">
+        Posted on January 14, 2017
+        
+    </section>
+    <section>
+        <h1 id="immutable-state-of-the-art">Immutable State of the Art</h1>
+<p>There is a ongoing hype of JavaScript<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a> in the developer community. Virtually everything is now compiled to JavaScript and delivered to the client. JavaScript is also becoming very popular for server side development<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>, replacing Ruby and PHP as primary programming language.<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a> Not only that, there’s also an ongoing serverless trend, moving most of the back-end code into the front-end part of the application.<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a> This paradigm shift results in highly complex front-end applications, making it very complicated to write applications with plain old vanilla JavaScript. For this reason, the community started to put much effort in improving the JavaScript front-end development. A new JavaScript Standard ES6 (ECMAScript 2015) have been published. The Babel compiler, compiles that new standard to vanilla JavaScript, allowing it’s execution in older browsers. Frameworks and tools like react, webpack, karma, mocha, enzyme, gulp, eslint and many more to make the life as JavaScript developer as comfortable as possible.<a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a></p>
+<p>It takes many weeks to get familiar with the new toolchain, but it will pay off in the long run. Following all current best practices leads to a setup with many different tools and a highly improved JavaScript syntax, that basically follows the approach of reactive functional programming. It would take a very long time to describe why that is the case - TLDR; the major problem is mutable state.<a href="#fn6" class="footnote-ref" id="fnref6"><sup>6</sup></a> Mutable state is not only a potential source of bugs, it is also a one of the top reasons for unpredictable application behaviour and is in principle not compatible with parallelization.<a href="#fn7" class="footnote-ref" id="fnref7"><sup>7</sup></a> So, why not experimenting with a new reactive functional programming language explicitly designed for front-end programming, that compiles to vanilla JavaScript.</p>
+<h1 id="parse-json-in-elm-0.18">Parse JSON in Elm 0.18</h1>
+<p>Elm is a static typed, reactive, pure functional programming language. It has a simplified Haskell syntax, making it much easier to use than Haskell. It is focused on front-end web development and therefore compiles to JavaScript. It has the builtin features of react and redux.<a href="#fn8" class="footnote-ref" id="fnref8"><sup>8</sup></a></p>
+<p>Lets consider an JSON API in the following format:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode json"><code class="sourceCode json"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">[</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2">  <span class="fu">{</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3">    <span class="dt">&quot;name&quot;</span><span class="fu">:</span> <span class="st">&quot;JavaScript&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4">    <span class="dt">&quot;year&quot;</span><span class="fu">:</span> <span class="st">&quot;2012&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5">    <span class="dt">&quot;quarter&quot;</span><span class="fu">:</span> <span class="st">&quot;2&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-6" data-line-number="6">    <span class="dt">&quot;count&quot;</span><span class="fu">:</span> <span class="st">&quot;118009&quot;</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7">  <span class="fu">}</span><span class="ot">,</span></a>
+<a class="sourceLine" id="cb1-8" data-line-number="8">  <span class="fu">{</span></a>
+<a class="sourceLine" id="cb1-9" data-line-number="9">    <span class="dt">&quot;name&quot;</span><span class="fu">:</span> <span class="st">&quot;Ruby&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-10" data-line-number="10">    <span class="dt">&quot;year&quot;</span><span class="fu">:</span> <span class="st">&quot;2012&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-11" data-line-number="11">    <span class="dt">&quot;quarter&quot;</span><span class="fu">:</span> <span class="st">&quot;2&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-12" data-line-number="12">    <span class="dt">&quot;count&quot;</span><span class="fu">:</span> <span class="st">&quot;67773&quot;</span></a>
+<a class="sourceLine" id="cb1-13" data-line-number="13">  <span class="fu">}</span><span class="ot">,</span></a>
+<a class="sourceLine" id="cb1-14" data-line-number="14">  <span class="fu">{</span></a>
+<a class="sourceLine" id="cb1-15" data-line-number="15">    <span class="dt">&quot;name&quot;</span><span class="fu">:</span> <span class="st">&quot;Python&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-16" data-line-number="16">    <span class="dt">&quot;year&quot;</span><span class="fu">:</span> <span class="st">&quot;2012&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-17" data-line-number="17">    <span class="dt">&quot;quarter&quot;</span><span class="fu">:</span> <span class="st">&quot;2&quot;</span><span class="fu">,</span></a>
+<a class="sourceLine" id="cb1-18" data-line-number="18">    <span class="dt">&quot;count&quot;</span><span class="fu">:</span> <span class="st">&quot;42212&quot;</span></a>
+<a class="sourceLine" id="cb1-19" data-line-number="19">  <span class="fu">}</span></a>
+<a class="sourceLine" id="cb1-20" data-line-number="20"><span class="ot">]</span></a></code></pre></div>
+<p>Since Elm is strongly typed we have to create a type that matches the given JSON objects.</p>
+<pre class="elm"><code>type alias ProgrammingLanguage = {
+  name : String,
+  year : Int,
+  quarter: Int,
+  count : Int
+}</code></pre>
+<p>As you can see the attribute name is a string and year, quarter, count are integers. The JSON API provides integers encoded as strings, so it is necessary to do a type cast. Therefore we need to write a simple custom decoder, that converts a string to integer.</p>
+<pre class="elm"><code>stringAsInt : Decoder Int
+stringAsInt = string |&gt; andThen (String.toInt &gt;&gt; fromResult)</code></pre>
+<p>Lets take a look at the type definition to see how this works. <code>andThen : (a -&gt; Decoder b) -&gt; Decoder a -&gt; Decoder b</code> The function <code>andThen</code> takes two arguments a decoder a, in this case the standard string decoder and a type cast function from a to decoder b that converts the result of our string decoder to an new decoder of type b. This procedure is a simple chain, first decode as string and then decode as int by type conversion. If you know Haskell <code>andThen</code> is the equivalent of <code>(=&lt;&lt;) :: Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b</code> the monadic bind that sequentially compose two actions by passing any value produced by the first as an argument to the second. If you are not familiar with the pipe <code>|&gt;</code> and function composition <code>&gt;&gt;</code> notation you can also write the function with as a lambda expression <code>andThen (\n -&gt; fromResult(String.toInt(n))) string</code>. Now we are able to use that decoder to decode a single JSON object.</p>
+<pre class="elm"><code>langDecoder : Decoder ProgrammingLanguage
+langDecoder =
+  map4 ProgrammingLanguage
+    (field &quot;name&quot; string)
+    (field &quot;year&quot; stringAsInt)
+    (field &quot;quarter&quot; stringAsInt)
+    (field &quot;count&quot; stringAsInt)</code></pre>
+<p>Since our API is a list of programming language objects we need to parse the whole list. <code>Json.Decode.list : Decoder a -&gt; Decoder (List a)</code></p>
+<pre class="elm"><code>langListDecoder : Decoder (List ProgrammingLanguage)
+langListDecoder = Json.Decode.list langDecoder</code></pre>
+<p>Finally you are able to use the decoder to parse JSON from a given URL <code>Http.get url langListDecoder</code></p>
+<pre class="elm"><code>getProgrammingLanguages : Cmd Msg
+getProgrammingLanguages =
+  let url = &quot;gh-star-event.json&quot;
+  in Http.send NewLang (Http.get url langListDecoder)</code></pre>
+<p>See https://github.com/madnight/elm-webpack-starter for a full working API parsing example.</p>
+<h2 id="update">Update</h2>
+<p>There’s a new command line tool and website https://github.com/eeue56/json-to-elm that allows for automatic conversion of JSON to elm code.</p>
+<blockquote>
+<p>This project allows you to automate the creation of:</p>
+<ul>
+<li>type aliases from JSON data</li>
+<li>decoders from type aliases and some union types</li>
+<li>encoders from type aliases and some union types</li>
+</ul>
+</blockquote>
+<h2 id="references">References</h2>
+<section class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p><a href="https://madnight.github.io/githut">Programming Languages Github Ranking</a><a href="#fnref1" class="footnote-back">↩</a></p></li>
+<li id="fn2"><p><a href="https://en.wikipedia.org/wiki/Node.js">Event-driven I/O server-side JavaScript environment based on V8</a><a href="#fnref2" class="footnote-back">↩</a></p></li>
+<li id="fn3"><p><a href="http://www.tiobe.com/tiobe-index/">JavaScript more widely used in industry than PHP or Ruby</a><a href="#fnref3" class="footnote-back">↩</a></p></li>
+<li id="fn4"><p><a href="https://medium.com/@PaulDJohnston/what-is-serverless-architecture-43b9ea4babca#.5adec3yz0">What is Serverless Architecture?</a><a href="#fnref4" class="footnote-back">↩</a></p></li>
+<li id="fn5"><p><a href="https://github.com/madnight/react-webpack-babel-karma-boilerplate">Boilerplate Example react-webpack-babel-karma-boilerplate</a><a href="#fnref5" class="footnote-back">↩</a></p></li>
+<li id="fn6"><p><a href="http://stackoverflow.com/questions/1020653/how-can-you-do-anything-useful-without-mutable-state">How can you do anything useful without mutable state?</a><a href="#fnref6" class="footnote-back">↩</a></p></li>
+<li id="fn7"><p><a href="https://medium.com/@cscalfani/so-you-want-to-be-a-functional-programmer-part-1-1f15e387e536#.wu667z5wl">So You Want to be a Functional Programmer</a><a href="#fnref7" class="footnote-back">↩</a></p></li>
+<li id="fn8"><p><a href="https://github.com/reactjs/redux#Influences">Redux is influenced by ELM</a><a href="#fnref8" class="footnote-back">↩</a></p></li>
+</ol>
+</section>
+    </section>
+</article>
+
+<!-- <div id="comments"> -->
+<!-- <div class="post-header"> -->
+<!--   <h1 class="h1 post-title">Comments</h1> -->
+<!-- </div> -->
+<!-- <article class="post-content"> -->
+<!-- </article> -->
+<!-- <script type="text/javascript"> -->
+<!--       var myJqueryAlias = jQuery.noConflict(); -->
+<!--   function loadComments(data) { -->
+<!--     for (var i=0; i<data.length; i++) { -->
+<!--       var cuser = data[i].user.login; -->
+<!--       var cuserlink = data[i].user.html_url; -->
+<!--       var clink = data[i].html_url; -->
+<!--       var cbody = data[i].body_html; -->
+<!--       var cavatarlink = data[i].user.avatar_url; -->
+<!--       var cdate = new Date(data[i].created_at); -->
+
+<!--         var options = { year: "numeric", month: "numeric", day: "numeric" }; -->
+<!--       myJqueryAlias("#comments").append( -->
+<!--          "<div class='comment'>" + -->
+<!--             "<div class='commentheader'>" + -->
+<!--               "<a class='commentuser'>" + -->
+<!--         "<b>" + cuser + "</b>" + " - " + -->
+<!--               "</a>" + -->
+<!--               "<a class='commentdate'>" + -->
+<!--         "<small>" + cdate.toISOString().slice(0,10) + "</small>" + -->
+<!--               "</a>" + -->
+<!--             "</div>" + -->
+<!--             "<div class='commentbody'>" + -->
+<!--               cbody + -->
+<!--             "</div>" + -->
+<!--           "</div>" -->
+<!--       ); -->
+<!--     } -->
+<!--   } -->
+<!--   myJqueryAlias.ajax("https://api.github.com/repos/mkoohafkan/mkoohafkan.github.io/issues/23/comments", { -->
+<!--     headers: {Accept: "application/vnd.github.v3.html+json"}, -->
+<!--     dataType: "json", -->
+<!--     success: function(msg){ -->
+<!--       loadComments(msg); -->
+<!--    } -->
+<!--   }); -->
+<!-- </script> -->
+
+<!-- <p>Want to leave a comment? Visit <a href="https://github.com/mkoohafkan/mkoohafkan.github.io/issues/{{page.commentIssueId}}"> this post's issue page on GitHub</a></p> -->
+
+
+
+        </main>
+
+        <footer>
+            Text licensed under CC BY-SA 4.0.<br> Blog powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a>.
+        </footer>
+
+    </body>
+
+</html>

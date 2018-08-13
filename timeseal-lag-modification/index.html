@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>beuke.org</title>
+        <link rel="stylesheet" href="../css/default.css" />
+        <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script> -->
+    </head>
+
+    <body>
+
+        <header>
+
+            <div class="logo">
+                <a href="../">beuke.org</a>
+            </div>
+
+            <nav>
+                <a href="../">Home</a>
+                <a href="../contact.html">Contact</a>
+            </nav>
+
+        </header>
+
+        <main role="main">
+            <h1>Online Chess Clock Exploit</h1>
+            <article>
+    <section class="header">
+        Posted on June 10, 2014
+        
+    </section>
+    <section>
+        <p>The following exploit works for any online chess server that use timeseal. This bug has been reported to all major chess sites and is known since many years. As for example this hack is not possible on lichess.<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a> However there might still be a server out there that is using timeseal. Please contact the Administrator and ask him for a fix.</p>
+<blockquote>
+<p>Timeseal is a program that has been developed to improve chess on internet. Netlag often causes players to lose valuable seconds or even minutes on their chess clocks. Transmission time is counted against you, unless the chess server can tell exactly when information is transmitted. The timeseal program acts as a relay station and keeps track of transmission times. What timeseal does is record your thinking time, so that transmission time is not counted against you. Timeseal will not prevent netlag but it makes the games fairer when lag occurs. <a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a></p>
+</blockquote>
+<p><img src="https://i.imgur.com/M2oOKFx.png" /></p>
+<p>Timeseal calculates the lag as a difference between two timestamps. Modifying the lag value can be done by adding an random offset to the timestamp calculation. The code can be hex edited (hardcoded) into the timeseal binary.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode asm"><code class="sourceCode fasm"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="dv">00401421</span>   E8 CA0D0000      <span class="bu">CALL</span> timeseal<span class="fl">.004021</span>F0</a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="dv">00401426</span>   <span class="dv">25</span> FF030000      <span class="bu">AND</span> <span class="kw">EAX</span>,3FF</a>
+<a class="sourceLine" id="cb1-3" data-line-number="3">0040142B   <span class="dv">05</span> <span class="dv">01010000</span>      <span class="bu">ADD</span> <span class="kw">EAX</span>,<span class="dv">101</span></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="dv">00401430</span>   8B15 E0A14000    <span class="bu">MOV</span> <span class="kw">EDX</span>,<span class="dt">DWORD</span> <span class="dt">PTR</span> <span class="kw">DS</span>:[40A1E0]</a>
+<a class="sourceLine" id="cb1-5" data-line-number="5"><span class="dv">00401436</span>   03D0             <span class="bu">ADD</span> <span class="kw">EDX</span>,<span class="kw">EAX</span></a>
+<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="dv">00401438</span>   <span class="dv">8915</span> E0A14000    <span class="bu">MOV</span> <span class="dt">DWORD</span> <span class="dt">PTR</span> <span class="kw">DS</span>:[40A1E0],<span class="kw">EDX</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7">0040143E   8BC2             <span class="bu">MOV</span> <span class="kw">EAX</span>,<span class="kw">EDX</span></a></code></pre></div>
+<p>The address for the random hook is <code>timeseal.004021F0 := rand()</code> while <code>AND EAX, 3FF</code> is the asm modulo function <code>rand()%1024</code> + fixed offset hex 101. The modification offers the following unfair advantages:</p>
+<ul>
+<li>Impossible to loose on time</li>
+<li>Always move faster than your opponent</li>
+<li>Seems legit, opponents may think that you are simply lagging, cause of random offset</li>
+</ul>
+<p>Full fledged example that hooks into the <code>ADVAPI32.dll</code> with a small window for different lag settings.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="pp">#include </span><span class="im">&quot;stdafx.h&quot;</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="pp">#pragma comment(lib, &quot;detours.lib&quot;)</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4"><span class="pp">#undef UNICODE</span></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5"><span class="pp">#include </span><span class="im">&lt;cstdio&gt;</span></a>
+<a class="sourceLine" id="cb2-6" data-line-number="6"><span class="pp">#include </span><span class="im">&lt;windows.h&gt;</span></a>
+<a class="sourceLine" id="cb2-7" data-line-number="7"><span class="pp">#include </span><span class="im">&lt;detours.h&gt;</span></a>
+<a class="sourceLine" id="cb2-8" data-line-number="8"><span class="pp">#include </span><span class="im">&lt;process.h&gt;</span></a>
+<a class="sourceLine" id="cb2-9" data-line-number="9"><span class="pp">#include </span><span class="im">&lt;iostream&gt;</span></a>
+<a class="sourceLine" id="cb2-10" data-line-number="10"><span class="pp">#include </span><span class="im">&lt;string&gt;</span></a>
+<a class="sourceLine" id="cb2-11" data-line-number="11"></a>
+<a class="sourceLine" id="cb2-12" data-line-number="12"><span class="kw">using</span> <span class="bu">std::</span>cin;</a>
+<a class="sourceLine" id="cb2-13" data-line-number="13"><span class="kw">using</span> <span class="bu">std::</span>cout;</a>
+<a class="sourceLine" id="cb2-14" data-line-number="14"><span class="pp">#pragma pack(1)</span></a>
+<a class="sourceLine" id="cb2-15" data-line-number="15"></a>
+<a class="sourceLine" id="cb2-16" data-line-number="16"><span class="dt">int</span> Time = <span class="dv">0</span>;</a>
+<a class="sourceLine" id="cb2-17" data-line-number="17"><span class="dt">int</span> offset = <span class="dv">480</span>;</a>
+<a class="sourceLine" id="cb2-18" data-line-number="18"><span class="dt">int</span> randmod = <span class="dv">1</span>;</a>
+<a class="sourceLine" id="cb2-19" data-line-number="19"></a>
+<a class="sourceLine" id="cb2-20" data-line-number="20"><span class="pp">#define MYMENU_EXIT         (WM_APP + 101)</span></a>
+<a class="sourceLine" id="cb2-21" data-line-number="21"><span class="pp">#define MYMENU_MESSAGEBOX   (WM_APP + 102)</span></a>
+<a class="sourceLine" id="cb2-22" data-line-number="22"></a>
+<a class="sourceLine" id="cb2-23" data-line-number="23">HINSTANCE  inj_hModule;</a>
+<a class="sourceLine" id="cb2-24" data-line-number="24">HWND       prnt_hWnd;</a>
+<a class="sourceLine" id="cb2-25" data-line-number="25"></a>
+<a class="sourceLine" id="cb2-26" data-line-number="26">LRESULT CALLBACK DLLWindowProc (HWND, UINT, WPARAM, LPARAM);</a>
+<a class="sourceLine" id="cb2-27" data-line-number="27"></a>
+<a class="sourceLine" id="cb2-28" data-line-number="28">BOOL RegisterDLLWindowClass(<span class="dt">wchar_t</span> szClassName[]) {</a>
+<a class="sourceLine" id="cb2-29" data-line-number="29">    WNDCLASSEX wc;</a>
+<a class="sourceLine" id="cb2-30" data-line-number="30">    wc.hInstance =  inj_hModule;</a>
+<a class="sourceLine" id="cb2-31" data-line-number="31">    wc.lpszClassName = (LPCWSTR)<span class="st">L&quot;InjectedDLLWindowClass&quot;</span>;</a>
+<a class="sourceLine" id="cb2-32" data-line-number="32">    wc.lpszClassName = (LPCWSTR)szClassName;</a>
+<a class="sourceLine" id="cb2-33" data-line-number="33">    wc.lpfnWndProc = DLLWindowProc;</a>
+<a class="sourceLine" id="cb2-34" data-line-number="34">    wc.style = CS_DBLCLKS;</a>
+<a class="sourceLine" id="cb2-35" data-line-number="35">    wc.cbSize = <span class="kw">sizeof</span> (WNDCLASSEX);</a>
+<a class="sourceLine" id="cb2-36" data-line-number="36">    wc.hIcon = LoadIcon (NULL, IDI_APPLICATION);</a>
+<a class="sourceLine" id="cb2-37" data-line-number="37">    wc.hIconSm = LoadIcon (NULL, IDI_APPLICATION);</a>
+<a class="sourceLine" id="cb2-38" data-line-number="38">    wc.hCursor = LoadCursor (NULL, IDC_ARROW);</a>
+<a class="sourceLine" id="cb2-39" data-line-number="39">    wc.lpszMenuName = NULL;</a>
+<a class="sourceLine" id="cb2-40" data-line-number="40">    wc.cbClsExtra = <span class="dv">0</span>;</a>
+<a class="sourceLine" id="cb2-41" data-line-number="41">    wc.cbWndExtra = <span class="dv">0</span>;</a>
+<a class="sourceLine" id="cb2-42" data-line-number="42">    wc.hbrBackground = (HBRUSH) COLOR_BACKGROUND;</a>
+<a class="sourceLine" id="cb2-43" data-line-number="43">    <span class="cf">if</span> (!RegisterClassEx (&amp;wc)) <span class="cf">return</span> <span class="dv">0</span>;</a>
+<a class="sourceLine" id="cb2-44" data-line-number="44">}</a>
+<a class="sourceLine" id="cb2-45" data-line-number="45"></a>
+<a class="sourceLine" id="cb2-46" data-line-number="46"><span class="pp">#define ONE_PLUS_ZERO 600</span></a>
+<a class="sourceLine" id="cb2-47" data-line-number="47"><span class="pp">#define ZERO_PLUS_ONE 601</span></a>
+<a class="sourceLine" id="cb2-48" data-line-number="48"><span class="pp">#define MINIMUM 602</span></a>
+<a class="sourceLine" id="cb2-49" data-line-number="49"><span class="pp">#define BIGTIME 603</span></a>
+<a class="sourceLine" id="cb2-50" data-line-number="50"><span class="pp">#define TIMELOOSE 604</span></a>
+<a class="sourceLine" id="cb2-51" data-line-number="51"></a>
+<a class="sourceLine" id="cb2-52" data-line-number="52">HMENU CreateDLLWindowMenu() {</a>
+<a class="sourceLine" id="cb2-53" data-line-number="53">    HMENU hMenu;</a>
+<a class="sourceLine" id="cb2-54" data-line-number="54">    hMenu = CreateMenu();</a>
+<a class="sourceLine" id="cb2-55" data-line-number="55">    HMENU hMenuPopup;</a>
+<a class="sourceLine" id="cb2-56" data-line-number="56">    <span class="cf">if</span>(hMenu==NULL) <span class="cf">return</span> FALSE;</a>
+<a class="sourceLine" id="cb2-57" data-line-number="57">    hMenuPopup = CreatePopupMenu();</a>
+<a class="sourceLine" id="cb2-58" data-line-number="58">    AppendMenu (hMenuPopup, MF_STRING, MYMENU_EXIT, TEXT(<span class="st">&quot;Exit&quot;</span>));</a>
+<a class="sourceLine" id="cb2-59" data-line-number="59">    AppendMenu (hMenu, MF_POPUP, (UINT_PTR) hMenuPopup, TEXT(<span class="st">&quot;Exit&quot;</span>));</a>
+<a class="sourceLine" id="cb2-60" data-line-number="60">    hMenuPopup = CreatePopupMenu();</a>
+<a class="sourceLine" id="cb2-61" data-line-number="61">    AppendMenu (hMenuPopup, MF_STRING, ONE_PLUS_ZERO, TEXT(<span class="st">&quot;Preset '1 0'&quot;</span>));</a>
+<a class="sourceLine" id="cb2-62" data-line-number="62">    AppendMenu (hMenuPopup, MF_STRING, ZERO_PLUS_ONE, TEXT(<span class="st">&quot;Preset '0 1'&quot;</span>));</a>
+<a class="sourceLine" id="cb2-63" data-line-number="63">    AppendMenu (hMenuPopup, MF_STRING, MINIMUM, TEXT(<span class="st">&quot;MINIMUM&quot;</span>));</a>
+<a class="sourceLine" id="cb2-64" data-line-number="64">    AppendMenu (hMenuPopup, MF_STRING, BIGTIME, TEXT(<span class="st">&quot;BIGTIME&quot;</span>));</a>
+<a class="sourceLine" id="cb2-65" data-line-number="65">    AppendMenu (hMenuPopup, MF_STRING, TIMELOOSE, TEXT(<span class="st">&quot;TIMELOOSE&quot;</span>));</a>
+<a class="sourceLine" id="cb2-66" data-line-number="66">    AppendMenu (hMenu, MF_POPUP, (UINT_PTR) hMenuPopup, TEXT(<span class="st">&quot;TimeSeal&quot;</span>));</a>
+<a class="sourceLine" id="cb2-67" data-line-number="67">    <span class="cf">return</span> hMenu;</a>
+<a class="sourceLine" id="cb2-68" data-line-number="68">}</a>
+<a class="sourceLine" id="cb2-69" data-line-number="69"></a>
+<a class="sourceLine" id="cb2-70" data-line-number="70">DWORD WINAPI ThreadProc( LPVOID lpParam ) {</a>
+<a class="sourceLine" id="cb2-71" data-line-number="71">    MSG messages;</a>
+<a class="sourceLine" id="cb2-72" data-line-number="72">    <span class="dt">wchar_t</span> *pString = <span class="kw">reinterpret_cast</span>&lt;<span class="dt">wchar_t</span> * &gt; (lpParam);</a>
+<a class="sourceLine" id="cb2-73" data-line-number="73">    HMENU hMenu = CreateDLLWindowMenu();</a>
+<a class="sourceLine" id="cb2-74" data-line-number="74">    RegisterDLLWindowClass(<span class="st">L&quot;InjectedDLLWindowClass&quot;</span>);</a>
+<a class="sourceLine" id="cb2-75" data-line-number="75">    prnt_hWnd = FindWindow(<span class="st">L&quot;Window Injected Into ClassName&quot;</span>,</a>
+<a class="sourceLine" id="cb2-76" data-line-number="76">    <span class="st">L&quot;Window Injected Into Caption&quot;</span>);</a>
+<a class="sourceLine" id="cb2-77" data-line-number="77">    HWND hwnd = CreateWindowEx (<span class="dv">0</span>, <span class="st">L&quot;InjectedDLLWindowClass&quot;</span>, pString,</a>
+<a class="sourceLine" id="cb2-78" data-line-number="78">    WS_EX_PALETTEWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, <span class="dv">400</span>, <span class="dv">300</span>,</a>
+<a class="sourceLine" id="cb2-79" data-line-number="79">    prnt_hWnd, hMenu, inj_hModule, NULL );</a>
+<a class="sourceLine" id="cb2-80" data-line-number="80">    ShowWindow (hwnd, SW_SHOWNORMAL);</a>
+<a class="sourceLine" id="cb2-81" data-line-number="81">    <span class="cf">while</span> (GetMessage (&amp;messages, NULL, <span class="dv">0</span>, <span class="dv">0</span>)) {</a>
+<a class="sourceLine" id="cb2-82" data-line-number="82">        TranslateMessage(&amp;messages);</a>
+<a class="sourceLine" id="cb2-83" data-line-number="83">        DispatchMessage(&amp;messages);</a>
+<a class="sourceLine" id="cb2-84" data-line-number="84">    }</a>
+<a class="sourceLine" id="cb2-85" data-line-number="85">    <span class="cf">return</span> <span class="dv">1</span>;</a>
+<a class="sourceLine" id="cb2-86" data-line-number="86">}</a>
+<a class="sourceLine" id="cb2-87" data-line-number="87"></a>
+<a class="sourceLine" id="cb2-88" data-line-number="88">LRESULT CALLBACK DLLWindowProc (HWND hwnd,</a>
+<a class="sourceLine" id="cb2-89" data-line-number="89">                                UINT message,</a>
+<a class="sourceLine" id="cb2-90" data-line-number="90">                                WPARAM wParam,</a>
+<a class="sourceLine" id="cb2-91" data-line-number="91">                                LPARAM lParam) {</a>
+<a class="sourceLine" id="cb2-92" data-line-number="92">    <span class="cf">switch</span> (message) {</a>
+<a class="sourceLine" id="cb2-93" data-line-number="93">    <span class="cf">case</span> WM_COMMAND:</a>
+<a class="sourceLine" id="cb2-94" data-line-number="94">        <span class="cf">switch</span>(wParam) {</a>
+<a class="sourceLine" id="cb2-95" data-line-number="95">        <span class="cf">case</span> MYMENU_EXIT:</a>
+<a class="sourceLine" id="cb2-96" data-line-number="96">            SendMessage(hwnd, WM_CLOSE, <span class="dv">0</span>, <span class="dv">0</span>);</a>
+<a class="sourceLine" id="cb2-97" data-line-number="97">            <span class="cf">break</span>;</a>
+<a class="sourceLine" id="cb2-98" data-line-number="98">        <span class="cf">case</span> ONE_PLUS_ZERO:</a>
+<a class="sourceLine" id="cb2-99" data-line-number="99">            offset = <span class="dv">502</span>;</a>
+<a class="sourceLine" id="cb2-100" data-line-number="100">            randmod = <span class="dv">1320</span>;</a>
+<a class="sourceLine" id="cb2-101" data-line-number="101">            <span class="cf">break</span>;</a>
+<a class="sourceLine" id="cb2-102" data-line-number="102">        <span class="cf">case</span> ZERO_PLUS_ONE:</a>
+<a class="sourceLine" id="cb2-103" data-line-number="103">            offset = <span class="dv">502</span>;</a>
+<a class="sourceLine" id="cb2-104" data-line-number="104">            randmod = <span class="dv">1320</span>;</a>
+<a class="sourceLine" id="cb2-105" data-line-number="105">            <span class="cf">break</span>;</a>
+<a class="sourceLine" id="cb2-106" data-line-number="106">        <span class="cf">case</span> MINIMUM:</a>
+<a class="sourceLine" id="cb2-107" data-line-number="107">            offset = <span class="dv">102</span>;</a>
+<a class="sourceLine" id="cb2-108" data-line-number="108">            randmod = <span class="dv">200</span>;</a>
+<a class="sourceLine" id="cb2-109" data-line-number="109">            <span class="cf">break</span>;</a>
+<a class="sourceLine" id="cb2-110" data-line-number="110">        <span class="cf">case</span> BIGTIME:</a>
+<a class="sourceLine" id="cb2-111" data-line-number="111">            offset = <span class="dv">2000</span>;</a>
+<a class="sourceLine" id="cb2-112" data-line-number="112">            randmod = <span class="dv">3000</span>;</a>
+<a class="sourceLine" id="cb2-113" data-line-number="113">            <span class="cf">break</span>;</a>
+<a class="sourceLine" id="cb2-114" data-line-number="114">        <span class="cf">case</span> TIMELOOSE:</a>
+<a class="sourceLine" id="cb2-115" data-line-number="115">            offset = <span class="dv">100000</span>;</a>
+<a class="sourceLine" id="cb2-116" data-line-number="116">            randmod = <span class="dv">30000</span>;</a>
+<a class="sourceLine" id="cb2-117" data-line-number="117">            <span class="cf">break</span>;</a>
+<a class="sourceLine" id="cb2-118" data-line-number="118">        }</a>
+<a class="sourceLine" id="cb2-119" data-line-number="119">        <span class="cf">break</span>;</a>
+<a class="sourceLine" id="cb2-120" data-line-number="120">    <span class="cf">case</span> WM_DESTROY:</a>
+<a class="sourceLine" id="cb2-121" data-line-number="121">        PostQuitMessage (<span class="dv">0</span>);</a>
+<a class="sourceLine" id="cb2-122" data-line-number="122">        <span class="cf">break</span>;</a>
+<a class="sourceLine" id="cb2-123" data-line-number="123">    <span class="cf">default</span>:</a>
+<a class="sourceLine" id="cb2-124" data-line-number="124">        <span class="cf">return</span> DefWindowProc (hwnd, message, wParam, lParam);</a>
+<a class="sourceLine" id="cb2-125" data-line-number="125">    }</a>
+<a class="sourceLine" id="cb2-126" data-line-number="126">    <span class="cf">return</span> <span class="dv">0</span>;</a>
+<a class="sourceLine" id="cb2-127" data-line-number="127">}</a>
+<a class="sourceLine" id="cb2-128" data-line-number="128"></a>
+<a class="sourceLine" id="cb2-129" data-line-number="129"><span class="dt">void</span> startup() {</a>
+<a class="sourceLine" id="cb2-130" data-line-number="130">    CreateThread(<span class="dv">0</span>, NULL, ThreadProc, (LPVOID)<span class="st">L&quot;&quot;</span>, NULL, NULL);</a>
+<a class="sourceLine" id="cb2-131" data-line-number="131">    __asm mov eax, <span class="bn">0x00401400</span></a>
+<a class="sourceLine" id="cb2-132" data-line-number="132">    __asm call eax</a>
+<a class="sourceLine" id="cb2-133" data-line-number="133">    __asm mov Time, eax</a>
+<a class="sourceLine" id="cb2-134" data-line-number="134">}</a>
+<a class="sourceLine" id="cb2-135" data-line-number="135"></a>
+<a class="sourceLine" id="cb2-136" data-line-number="136"><span class="dt">int</span> __cdecl Hooked_GetTimeForLag() {</a>
+<a class="sourceLine" id="cb2-137" data-line-number="137">    <span class="dt">int</span> random = <span class="dv">0</span>;</a>
+<a class="sourceLine" id="cb2-138" data-line-number="138">    __asm mov eax, <span class="bn">0x004021F0</span></a>
+<a class="sourceLine" id="cb2-139" data-line-number="139">    __asm call eax</a>
+<a class="sourceLine" id="cb2-140" data-line-number="140">    __asm mov random, eax</a>
+<a class="sourceLine" id="cb2-141" data-line-number="141">    Time = Time + (random%randmod);</a>
+<a class="sourceLine" id="cb2-142" data-line-number="142">    Time = Time + offset;</a>
+<a class="sourceLine" id="cb2-143" data-line-number="143">    <span class="cf">return</span> Time;</a>
+<a class="sourceLine" id="cb2-144" data-line-number="144">}</a>
+<a class="sourceLine" id="cb2-145" data-line-number="145"></a>
+<a class="sourceLine" id="cb2-146" data-line-number="146">HMODULE libraryHandle;</a>
+<a class="sourceLine" id="cb2-147" data-line-number="147">_declspec(dllexport) BOOL WINAPI GetUserNameA(LPSTR input, LPDWORD buffer) {</a>
+<a class="sourceLine" id="cb2-148" data-line-number="148">    <span class="kw">typedef</span> BOOL (WINAPI* CFunction) (LPSTR input, LPDWORD buffer);</a>
+<a class="sourceLine" id="cb2-149" data-line-number="149">    CFunction getUserName = (CFunction) GetProcAddress(libraryHandle,</a>
+<a class="sourceLine" id="cb2-150" data-line-number="150">                                                       <span class="st">&quot;GetUserNameA&quot;</span>);</a>
+<a class="sourceLine" id="cb2-151" data-line-number="151">    <span class="cf">return</span> getUserName(input, buffer);</a>
+<a class="sourceLine" id="cb2-152" data-line-number="152">}</a>
+<a class="sourceLine" id="cb2-153" data-line-number="153"></a>
+<a class="sourceLine" id="cb2-154" data-line-number="154">BOOL WINAPI DllMain(HMODULE module,DWORD action,LPVOID reserved) {</a>
+<a class="sourceLine" id="cb2-155" data-line-number="155">    libraryHandle = LoadLibraryA(<span class="st">&quot;ADVAPI32.dll&quot;</span>);</a>
+<a class="sourceLine" id="cb2-156" data-line-number="156">    <span class="cf">switch</span>(action) {</a>
+<a class="sourceLine" id="cb2-157" data-line-number="157">    <span class="cf">case</span> DLL_PROCESS_ATTACH: {</a>
+<a class="sourceLine" id="cb2-158" data-line-number="158">            DetourTransactionBegin();</a>
+<a class="sourceLine" id="cb2-159" data-line-number="159">            DetourUpdateThread(GetCurrentThread());</a>
+<a class="sourceLine" id="cb2-160" data-line-number="160">            startup();</a>
+<a class="sourceLine" id="cb2-161" data-line-number="161">            DetourAttach(&amp;(PVOID&amp;)GetTimeForLag, Hooked_GetTimeForLag);</a>
+<a class="sourceLine" id="cb2-162" data-line-number="162">            DetourTransactionCommit();</a>
+<a class="sourceLine" id="cb2-163" data-line-number="163">            <span class="cf">break</span>;</a>
+<a class="sourceLine" id="cb2-164" data-line-number="164">        }</a>
+<a class="sourceLine" id="cb2-165" data-line-number="165">        <span class="cf">break</span>;</a>
+<a class="sourceLine" id="cb2-166" data-line-number="166">    <span class="cf">case</span> DLL_THREAD_ATTACH:</a>
+<a class="sourceLine" id="cb2-167" data-line-number="167">        <span class="cf">break</span>;</a>
+<a class="sourceLine" id="cb2-168" data-line-number="168">    }</a>
+<a class="sourceLine" id="cb2-169" data-line-number="169">    <span class="cf">return</span> <span class="kw">true</span>;</a>
+<a class="sourceLine" id="cb2-170" data-line-number="170">}</a></code></pre></div>
+<h2 id="references">References</h2>
+<section class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p><a href="https://lichess.org/qa/602/is-the-timeseal-exploit-on-other-chess-servers-a-concern-on-lichess">Lichess</a><a href="#fnref1" class="footnote-back">↩</a></p></li>
+<li id="fn2"><p><a href="http://www.freechess.org/Help/HelpFiles/timeseal.html">Free Internet Chess Server</a><a href="#fnref2" class="footnote-back">↩</a></p></li>
+</ol>
+</section>
+    </section>
+</article>
+
+<!-- <div id="comments"> -->
+<!-- <div class="post-header"> -->
+<!--   <h1 class="h1 post-title">Comments</h1> -->
+<!-- </div> -->
+<!-- <article class="post-content"> -->
+<!-- </article> -->
+<!-- <script type="text/javascript"> -->
+<!--       var myJqueryAlias = jQuery.noConflict(); -->
+<!--   function loadComments(data) { -->
+<!--     for (var i=0; i<data.length; i++) { -->
+<!--       var cuser = data[i].user.login; -->
+<!--       var cuserlink = data[i].user.html_url; -->
+<!--       var clink = data[i].html_url; -->
+<!--       var cbody = data[i].body_html; -->
+<!--       var cavatarlink = data[i].user.avatar_url; -->
+<!--       var cdate = new Date(data[i].created_at); -->
+
+<!--         var options = { year: "numeric", month: "numeric", day: "numeric" }; -->
+<!--       myJqueryAlias("#comments").append( -->
+<!--          "<div class='comment'>" + -->
+<!--             "<div class='commentheader'>" + -->
+<!--               "<a class='commentuser'>" + -->
+<!--         "<b>" + cuser + "</b>" + " - " + -->
+<!--               "</a>" + -->
+<!--               "<a class='commentdate'>" + -->
+<!--         "<small>" + cdate.toISOString().slice(0,10) + "</small>" + -->
+<!--               "</a>" + -->
+<!--             "</div>" + -->
+<!--             "<div class='commentbody'>" + -->
+<!--               cbody + -->
+<!--             "</div>" + -->
+<!--           "</div>" -->
+<!--       ); -->
+<!--     } -->
+<!--   } -->
+<!--   myJqueryAlias.ajax("https://api.github.com/repos/mkoohafkan/mkoohafkan.github.io/issues/23/comments", { -->
+<!--     headers: {Accept: "application/vnd.github.v3.html+json"}, -->
+<!--     dataType: "json", -->
+<!--     success: function(msg){ -->
+<!--       loadComments(msg); -->
+<!--    } -->
+<!--   }); -->
+<!-- </script> -->
+
+<!-- <p>Want to leave a comment? Visit <a href="https://github.com/mkoohafkan/mkoohafkan.github.io/issues/{{page.commentIssueId}}"> this post's issue page on GitHub</a></p> -->
+
+
+
+        </main>
+
+        <footer>
+            Text licensed under CC BY-SA 4.0.<br> Blog powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a>.
+        </footer>
+
+    </body>
+
+</html>
